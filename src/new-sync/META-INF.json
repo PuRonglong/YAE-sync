@@ -1,0 +1,34 @@
+{
+    "interface": {
+        "services": {
+
+        },
+        "sdk": {
+
+        },
+        "url": {
+
+        },
+        "fragment": {
+
+        }
+    },
+    "services": [
+        {
+            "name": "checkChunk",
+            "path": "/newsync/checkchunk",
+            "method": "get",
+            "auth": false,
+            "impl": "syncService.checkChunk",
+            "comment": "检查chunk是否存在"
+        }
+    ],
+    "statics": [
+    ],
+    "dataModelSchema": [
+    ],
+    "configuration": {
+
+    },
+    "errorHandler": []
+}
