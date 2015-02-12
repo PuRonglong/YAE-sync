@@ -37,6 +37,14 @@
             "auth": false,
             "impl": "syncService.downloadChunk",
             "comment": "下载chunk"
+        },
+        {
+            "name": "uploadChunkOrRdb",
+            "path": "/newsync/upload",
+            "method": "post",
+            "auth": false,
+            "impl": "syncService.uploadChunkOrRdb",
+            "comment": "上传rdb或delta"
         }
     ],
     "statics": [

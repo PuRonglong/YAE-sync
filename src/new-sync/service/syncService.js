@@ -3,10 +3,12 @@ var oss = require(FRAMEWORKPATH + "/utils/ossClient");
 var libsync = require("./libsync");
 var fs = require("fs");
 var async = require("async");
+var uuid = require('node-uuid');
 
 exports.checkDeviceId = checkDeviceId;
 exports.checkChunk = checkChunk;
 exports.downloadChunk = downloadChunk;
+exports.uploadChunkOrRdb = uploadChunkOrRdb;
 
 function checkDeviceId(req, res, next){
 
@@ -58,11 +60,9 @@ function checkChunk(req, res, next){
 
 function downloadChunk(req, res, next){
 
-    var ossPath;
-    var localPath;
-    var chunkPath;
+    var enterpriseId = req.headers["x-enterpriseid"];
 
-    async.series([_resolveOssPath, _fetchRdbFromOss, _doChunk], function(err){
+    _fetchLatestRdbFromOss(enterpriseId, function(err, localRdbPath){
 
         if(err){
             console.log(err);
@@ -70,46 +70,225 @@ function downloadChunk(req, res, next){
             return;
         }
 
-        res.download(chunkPath, "test.png", function(err){
+        var chunkPath = localRdbPath + ".chunk";
+
+        libsync.file_chunk(localRdbPath, chunkPath, 0, function (err, flag) {
+
+            _cleanRdbFile();
 
             if(err){
-                console.log("下载chunk文件失败");
+                console.log("调用libsync库失败");
                 console.log(err);
+                next(err);
+                return;
             }
 
-            _cleanChunkFile();
+            if(flag === -1){
+                console.log({errorMessage: "调用file_chunk失败"});
+                next({errorMessage: "调用file_chunk失败"});
+                return;
+            }
+
+            res.download(chunkPath, "test.png", function(err){
+
+                if(err){
+                    console.log("下载chunk文件失败");
+                    console.log(err);
+                }
+
+                _cleanChunkFile();
+            });
+        });
+
+        function _cleanRdbFile(){
+
+            fs.unlink(localRdbPath, function(err){
+
+                if(err){
+                    console.log("删除rdb文件失败: " + localRdbPath);
+                }
+            });
+        }
+
+        function _cleanChunkFile(){
+
+            fs.unlink(chunkPath, function(err){
+
+                if(err){
+                    console.log("删除chunk文件失败: " + chunkPath);
+                }
+            });
+        }
+    });
+}
+
+function uploadChunkOrRdb(req, res, next){
+
+    var deviceId = req.headers["x-deviceid"];
+    var enterpriseId = req.headers["x-enterpriseid"];
+    var backupType = req.headers["x-backuptype"];// full or chunk
+
+    req.form.on("end", function(){
+
+        var tmp_path = req.files.file.path;// 上传文件缓存路径
+        var uploadPath = global.appdir + "data/uploadTemp/" + req.files.file.name;// 上传的rdb或chunk
+
+        fs.rename(tmp_path, uploadPath, function(err){
+
+            _cleanCacheFile();
+
+            if(err){
+                console.log("移动文件失败，上传文件未保存成功: " + uploadPath);
+                next(err);
+                return;
+            }
+
+            var now = new Date().getTime();
+            var ossFileName = now + "_" + req.files.file.name;
+
+            if(backupType === "full"){
+                _handleRdbFile();
+            }else{
+                _handleDeltaFile();
+            }
+
+            function _cleanCacheFile(){
+
+                fs.unlink(tmp_path, function(err){
+
+                    if(err) {
+                        console.log("删除上传文件缓存失败: " + tmp_path);
+                    }
+                });
+            }
+
+            function _handleRdbFile(){
+
+                _putOssAndRecord(uploadPath, function(err){
+
+                    if(err){
+                        next(err);
+                        return;
+                    }
+
+                    doResponse(req, res, {message: "ok"});
+                });
+            }
+
+            function _handleDeltaFile(){
+
+                _fetchLatestRdbFromOss(enterpriseId, function(err, localRdbPath){
+
+                    if(err){
+                        _cleanDeltaFile();
+                        console.log(err);
+                        next(err);
+                        return;
+                    }
+
+                    libsync.file_sync(localRdbPath, uploadPath, function(err, flag){
+
+                        _cleanDeltaFile();
+
+                        if(err){
+                            console.log("调用libsync库失败");
+                            console.log(err);
+                            next(err);
+                            return;
+                        }
+
+                        if(flag === -1){
+                            console.log({errorMessage: "调用file_sync失败"});
+                            next({errorMessage: "调用file_sync失败"});
+                            return;
+                        }
+
+                        _putOssAndRecord(localRdbPath, function(err){
+
+                            if(err){
+                                next(err);
+                                return;
+                            }
+
+                            doResponse(req, res, {message: "ok"});
+                        });
+                    });
+
+                    function _cleanDeltaFile(){
+
+                        fs.unlink(uploadPath, function(err){
+
+                            if(err) {
+                                console.log("删除delta文件失败: " + uploadPath);
+                            }
+                        });
+                    }
+                });
+            }
+
+            function _putOssAndRecord(localFilePath, callback){
+
+                oss.putNewBackupObjectToOss(ossFileName, localFilePath, function(err){
+
+                    fs.unlink(localFilePath, function(err){
+
+                        if(err) {
+                            console.log("删除文件失败: " + localFilePath);
+                        }
+                    });
+
+                    if(err){
+                        console.log("上传文件到OSS失败");
+                        callback(err);
+                        return;
+                    }
+
+                    var model = {
+                        id: uuid.v1(),
+                        enterprise_id: enterpriseId,
+                        device_id: deviceId,
+                        oss_path: ossFileName,
+                        upload_date: now,
+                        merge_done: 0
+                    };
+
+                    dbHelper.addData("new_backup_history", model, function(err){
+
+                        if(err){
+                            console.log("备份记录写入数据库失败");
+                            callback(err);
+                            return;
+                        }
+
+                        callback(null);
+                    });
+                });
+            }
         });
     });
+}
 
-    function _resolveOssPath(callback){
+function _fetchLatestRdbFromOss(enterpriseId, callback){
 
-        var enterpriseId = req.headers["x-enterpriseid"];
+    var sql = "select * from planx_graph.new_backup_history where enterprise_id = :enterprise_id order by id desc limit 0, 1";
 
-        var sql = "select * from planx_graph.new_backup_history where enterprise_id = :enterprise_id order by id desc limit 0, 1";
+    dbHelper.execSql(sql, {enterprise_id: enterpriseId}, function(err, result){
 
-        dbHelper.execSql(sql, {enterprise_id: enterpriseId}, function(err, result){
+        if(err){
+            console.log("查询oss路径失败");
+            callback(err);
+            return;
+        }
 
-            if(err){
-                console.log("查询oss路径失败");
-                callback(err);
-                return;
-            }
+        if(result.length === 0){
+            callback({errorMessage: "找不到rdb文件"});
+            return;
+        }
 
-            if(result.length === 0){
-                callback({errorMessage: "找不到rdb文件"});
-                return;
-            }
+        var ossPath = result[0].oss_path;
+        var localRdbPath = global.appdir + "data/" + ossPath;
 
-            ossPath = result[0].oss_path;
-            callback(null);
-        });
-    }
-
-    function _fetchRdbFromOss(callback){
-
-        localPath = global.appdir + "data/" + ossPath;
-
-        oss.getObject("new-backup", ossPath, localPath, function(err) {
+        oss.getObject("new-backup", ossPath, localRdbPath, function(err) {
 
             if(err){
                 console.log("从OSS获取文件失败");
@@ -117,53 +296,7 @@ function downloadChunk(req, res, next){
                 return;
             }
 
-            callback(null);
+            callback(null, localRdbPath);
         });
-    }
-
-    function _doChunk(callback){
-
-        chunkPath = localPath + ".chunk";
-
-        libsync.file_chunk(localPath, chunkPath, 0, function (err, flag) {
-
-            if(err){
-
-                console.log("调用libsync库失败");
-                callback(err);
-                _cleanRdbFile();
-                return;
-            }
-
-            if(flag === -1){
-
-                callback({errorMessage: "调用file_chunk失败"});
-                _cleanRdbFile();
-                return;
-            }
-
-            _cleanRdbFile();
-            callback(null);
-        });
-    }
-
-    function _cleanRdbFile(){
-
-        fs.unlink(localPath, function(err){
-
-            if(err){
-                console.log("删除rdb文件失败: " + localPath);
-            }
-        });
-    }
-
-    function _cleanChunkFile(){
-
-        fs.unlink(chunkPath, function(err){
-
-            if(err){
-                console.log("删除chunk文件失败: " + chunkPath);
-            }
-        });
-    }
+    });
 }
