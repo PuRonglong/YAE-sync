@@ -40,7 +40,7 @@
         },
         {
             "name": "uploadChunkOrRdb",
-            "path": "/newsync/upload",
+            "path": "/newsync/uploadChunkOrRdb",
             "method": "post",
             "auth": false,
             "impl": "syncService.uploadChunkOrRdb",
