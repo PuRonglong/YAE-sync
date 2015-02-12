@@ -130,6 +130,9 @@ function uploadChunkOrRdb(req, res, next){
 
     req.form.on("end", function(){
 
+        var now = new Date().getTime();
+        var ossFileName = now + "_" + req.files.file.name;
+
         var tmp_path = req.files.file.path;// 上传文件缓存路径
         var uploadPath = global.appdir + "data/uploadTemp/" + req.files.file.name;// 上传的rdb或chunk
 
@@ -143,128 +146,125 @@ function uploadChunkOrRdb(req, res, next){
                 return;
             }
 
-            var now = new Date().getTime();
-            var ossFileName = now + "_" + req.files.file.name;
-
             if(backupType === "full"){
                 _handleRdbFile();
             }else{
                 _handleDeltaFile();
             }
+        });
 
-            function _cleanCacheFile(){
+        function _cleanCacheFile(){
 
-                fs.unlink(tmp_path, function(err){
+            fs.unlink(tmp_path, function(err){
 
-                    if(err) {
-                        console.log("删除上传文件缓存失败: " + tmp_path);
-                    }
-                });
-            }
+                if(err) {
+                    console.log("删除上传文件缓存失败: " + tmp_path);
+                }
+            });
+        }
 
-            function _handleRdbFile(){
+        function _handleRdbFile(){
 
-                _putOssAndRecord(uploadPath, function(err){
+            _putOssAndRecord(uploadPath, function(err){
+
+                if(err){
+                    next(err);
+                    return;
+                }
+
+                doResponse(req, res, {message: "ok"});
+            });
+        }
+
+        function _handleDeltaFile(){
+
+            _fetchLatestRdbFromOss(enterpriseId, function(err, localRdbPath){
+
+                if(err){
+                    _cleanDeltaFile();
+                    console.log(err);
+                    next(err);
+                    return;
+                }
+
+                libsync.file_sync(localRdbPath, uploadPath, function(err, flag){
+
+                    _cleanDeltaFile();
 
                     if(err){
-                        next(err);
-                        return;
-                    }
-
-                    doResponse(req, res, {message: "ok"});
-                });
-            }
-
-            function _handleDeltaFile(){
-
-                _fetchLatestRdbFromOss(enterpriseId, function(err, localRdbPath){
-
-                    if(err){
-                        _cleanDeltaFile();
+                        console.log("调用libsync库失败");
                         console.log(err);
                         next(err);
                         return;
                     }
 
-                    libsync.file_sync(localRdbPath, uploadPath, function(err, flag){
+                    if(flag === -1){
+                        console.log({errorMessage: "调用file_sync失败"});
+                        next({errorMessage: "调用file_sync失败"});
+                        return;
+                    }
 
-                        _cleanDeltaFile();
+                    _putOssAndRecord(localRdbPath, function(err){
 
                         if(err){
-                            console.log("调用libsync库失败");
-                            console.log(err);
                             next(err);
                             return;
                         }
 
-                        if(flag === -1){
-                            console.log({errorMessage: "调用file_sync失败"});
-                            next({errorMessage: "调用file_sync失败"});
-                            return;
-                        }
-
-                        _putOssAndRecord(localRdbPath, function(err){
-
-                            if(err){
-                                next(err);
-                                return;
-                            }
-
-                            doResponse(req, res, {message: "ok"});
-                        });
+                        doResponse(req, res, {message: "ok"});
                     });
-
-                    function _cleanDeltaFile(){
-
-                        fs.unlink(uploadPath, function(err){
-
-                            if(err) {
-                                console.log("删除delta文件失败: " + uploadPath);
-                            }
-                        });
-                    }
                 });
-            }
 
-            function _putOssAndRecord(localFilePath, callback){
+                function _cleanDeltaFile(){
 
-                oss.putNewBackupObjectToOss(ossFileName, localFilePath, function(err){
-
-                    fs.unlink(localFilePath, function(err){
+                    fs.unlink(uploadPath, function(err){
 
                         if(err) {
-                            console.log("删除文件失败: " + localFilePath);
+                            console.log("删除delta文件失败: " + uploadPath);
                         }
                     });
+                }
+            });
+        }
+
+        function _putOssAndRecord(localFilePath, callback){
+
+            oss.putNewBackupObjectToOss(ossFileName, localFilePath, function(err){
+
+                fs.unlink(localFilePath, function(err){
+
+                    if(err) {
+                        console.log("删除文件失败: " + localFilePath);
+                    }
+                });
+
+                if(err){
+                    console.log("上传文件到OSS失败");
+                    callback(err);
+                    return;
+                }
+
+                var model = {
+                    id: uuid.v1(),
+                    enterprise_id: enterpriseId,
+                    device_id: deviceId,
+                    oss_path: ossFileName,
+                    upload_date: now,
+                    merge_done: 0
+                };
+
+                dbHelper.addData("new_backup_history", model, function(err){
 
                     if(err){
-                        console.log("上传文件到OSS失败");
+                        console.log("备份记录写入数据库失败");
                         callback(err);
                         return;
                     }
 
-                    var model = {
-                        id: uuid.v1(),
-                        enterprise_id: enterpriseId,
-                        device_id: deviceId,
-                        oss_path: ossFileName,
-                        upload_date: now,
-                        merge_done: 0
-                    };
-
-                    dbHelper.addData("new_backup_history", model, function(err){
-
-                        if(err){
-                            console.log("备份记录写入数据库失败");
-                            callback(err);
-                            return;
-                        }
-
-                        callback(null);
-                    });
+                    callback(null);
                 });
-            }
-        });
+            });
+        }
     });
 }
 
