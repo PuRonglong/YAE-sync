@@ -3,7 +3,6 @@ var oss = require(FRAMEWORKPATH + "/utils/ossClient");
 var libsync = require("./libsync");
 var fs = require("fs");
 var async = require("async");
-var uuid = require('node-uuid');
 
 exports.checkDeviceId = checkDeviceId;
 exports.checkChunk = checkChunk;
@@ -237,7 +236,6 @@ function uploadDeltaOrRdb(req, res, next){
                 }
 
                 var model = {
-                    id: uuid.v1(),
                     enterprise_id: enterpriseId,
                     device_id: deviceId,
                     oss_path: ossFileName,
