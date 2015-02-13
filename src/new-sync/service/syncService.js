@@ -88,7 +88,7 @@ function downloadChunk(req, res, next){
                     return;
                 }
 
-                res.download(chunkPath, "test.png", function(err){
+                res.download(chunkPath, "current.chunk", function(err){
 
                     if(err){
                         console.log("下载chunk文件失败");
