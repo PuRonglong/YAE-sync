@@ -73,39 +73,42 @@ function downloadChunk(req, res, next){
 
         libsync.file_chunk(localRdbPath, chunkPath, 0, function (err, flag) {
 
-            _cleanRdbFile();
-
-            if(err){
-                console.log("调用libsync库失败");
-                console.log(err);
-                next(err);
-                return;
-            }
-
-            if(flag === -1){
-                console.log({errorMessage: "调用file_chunk失败"});
-                next({errorMessage: "调用file_chunk失败"});
-                return;
-            }
-
-            res.download(chunkPath, "test.png", function(err){
+            _cleanRdbFile(function(){
 
                 if(err){
-                    console.log("下载chunk文件失败");
+                    console.log("调用libsync库失败");
                     console.log(err);
+                    next(err);
+                    return;
                 }
 
-                _cleanChunkFile();
+                if(flag === -1){
+                    console.log({errorMessage: "调用file_chunk失败"});
+                    next({errorMessage: "调用file_chunk失败"});
+                    return;
+                }
+
+                res.download(chunkPath, "test.png", function(err){
+
+                    if(err){
+                        console.log("下载chunk文件失败");
+                        console.log(err);
+                    }
+
+                    _cleanChunkFile();
+                });
             });
         });
 
-        function _cleanRdbFile(){
+        function _cleanRdbFile(callback){
 
             fs.unlink(localRdbPath, function(err){
 
                 if(err){
                     console.log("删除rdb文件失败: " + localRdbPath);
                 }
+
+                callback();
             });
         }
 
@@ -169,9 +172,13 @@ function uploadDeltaOrRdb(req, res, next){
             _fetchLatestRdbFromOss(enterpriseId, function(err, localRdbPath){
 
                 if(err){
-                    _cleanDeltaFile();
+
                     console.log(err);
-                    next(err);
+
+                    _cleanDeltaFile(function(){
+                        next(err);
+                    });
+
                     return;
                 }
 
@@ -180,18 +187,21 @@ function uploadDeltaOrRdb(req, res, next){
                     if(err){
                         console.log("调用libsync库失败");
                         console.log(err);
-                        _cleanDeltaFile();
-                        next(err);
+                        _cleanDeltaFile(function(){
+                            next(err);
+                        });
                         return;
                     }
 
                     if(flag === -1){
                         console.log({errorMessage: "调用file_sync失败"});
-                        _cleanDeltaFile();
-                        next({errorMessage: "调用file_sync失败"});
+                        _cleanDeltaFile(function(){
+                            next({errorMessage: "调用file_sync失败"});
+                        });
                         return;
                     }
 
+                    // 上面的file_sync如果调用成功，delta会被自动删除
                     var nameExt = req.files.file.name.replace("delta", "rdb");
                     var ossFileName = now + "_" + nameExt;
 
@@ -206,13 +216,15 @@ function uploadDeltaOrRdb(req, res, next){
                     });
                 });
 
-                function _cleanDeltaFile(){
+                function _cleanDeltaFile(callback){
 
                     fs.unlink(uploadPath, function(err){
 
                         if(err) {
                             console.log("删除delta文件失败: " + uploadPath);
                         }
+
+                        callback();
                     });
                 }
             });
@@ -227,31 +239,31 @@ function uploadDeltaOrRdb(req, res, next){
                     if(err) {
                         console.log("删除文件失败: " + localFilePath);
                     }
-                });
-
-                if(err){
-                    console.log("上传文件到OSS失败");
-                    callback(err);
-                    return;
-                }
-
-                var model = {
-                    enterprise_id: enterpriseId,
-                    device_id: deviceId,
-                    oss_path: ossFileName,
-                    upload_date: now,
-                    merge_done: 0
-                };
-
-                dbHelper.addData("new_backup_history", model, function(err){
 
                     if(err){
-                        console.log("备份记录写入数据库失败");
+                        console.log("上传文件到OSS失败");
                         callback(err);
                         return;
                     }
 
-                    callback(null);
+                    var model = {
+                        enterprise_id: enterpriseId,
+                        device_id: deviceId,
+                        oss_path: ossFileName,
+                        upload_date: now,
+                        merge_done: 0
+                    };
+
+                    dbHelper.addData("new_backup_history", model, function(err){
+
+                        if(err){
+                            console.log("备份记录写入数据库失败");
+                            callback(err);
+                            return;
+                        }
+
+                        callback(null);
+                    });
                 });
             });
         }
