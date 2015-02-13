@@ -273,7 +273,36 @@ function uploadDeltaOrRdb(req, res, next){
 
 function downloadRdb(req, res, next){
 
-    res.send("ok");
+    var enterpriseId = req.headers["x-enterpriseid"];
+
+    _fetchLatestRdbFromOss(enterpriseId, function(err, localRdbPath){
+
+        if(err){
+            console.log(err);
+            next(err);
+            return;
+        }
+
+        res.download(localRdbPath, "latest.rdb", function(err){
+
+            if(err){
+                console.log("下载rdb文件失败");
+                console.log(err);
+            }
+
+            _cleanRdbFile();
+        });
+
+        function _cleanRdbFile(){
+
+            fs.unlink(localRdbPath, function(err){
+
+                if(err){
+                    console.log("删除rdb文件失败: " + localRdbPath);
+                }
+            });
+        }
+    });
 }
 
 function _fetchLatestRdbFromOss(enterpriseId, callback){
