@@ -8,7 +8,7 @@ var uuid = require('node-uuid');
 exports.checkDeviceId = checkDeviceId;
 exports.checkChunk = checkChunk;
 exports.downloadChunk = downloadChunk;
-exports.uploadChunkOrRdb = uploadChunkOrRdb;
+exports.uploadDeltaOrRdb = uploadDeltaOrRdb;
 
 function checkDeviceId(req, res, next){
 
@@ -122,7 +122,7 @@ function downloadChunk(req, res, next){
     });
 }
 
-function uploadChunkOrRdb(req, res, next){
+function uploadDeltaOrRdb(req, res, next){
 
     var deviceId = req.headers["x-deviceid"];
     var enterpriseId = req.headers["x-enterpriseid"];
@@ -131,14 +131,11 @@ function uploadChunkOrRdb(req, res, next){
     req.form.on("end", function(){
 
         var now = new Date().getTime();
-        var ossFileName = now + "_" + req.files.file.name;
 
         var tmp_path = req.files.file.path;// 上传文件缓存路径
         var uploadPath = global.appdir + "data/uploadTemp/" + req.files.file.name;// 上传的rdb或chunk
 
         fs.rename(tmp_path, uploadPath, function(err){
-
-            _cleanCacheFile();
 
             if(err){
                 console.log("移动文件失败，上传文件未保存成功: " + uploadPath);
@@ -153,19 +150,11 @@ function uploadChunkOrRdb(req, res, next){
             }
         });
 
-        function _cleanCacheFile(){
-
-            fs.unlink(tmp_path, function(err){
-
-                if(err) {
-                    console.log("删除上传文件缓存失败: " + tmp_path);
-                }
-            });
-        }
-
         function _handleRdbFile(){
 
-            _putOssAndRecord(uploadPath, function(err){
+            var ossFileName = now + "_" + req.files.file.name;
+
+            _putOssAndRecord(uploadPath, ossFileName, function(err){
 
                 if(err){
                     next(err);
@@ -189,22 +178,25 @@ function uploadChunkOrRdb(req, res, next){
 
                 libsync.file_sync(localRdbPath, uploadPath, function(err, flag){
 
-                    _cleanDeltaFile();
-
                     if(err){
                         console.log("调用libsync库失败");
                         console.log(err);
+                        _cleanDeltaFile();
                         next(err);
                         return;
                     }
 
                     if(flag === -1){
                         console.log({errorMessage: "调用file_sync失败"});
+                        _cleanDeltaFile();
                         next({errorMessage: "调用file_sync失败"});
                         return;
                     }
 
-                    _putOssAndRecord(localRdbPath, function(err){
+                    var nameExt = req.files.file.name.replace("delta", "rdb");
+                    var ossFileName = now + "_" + nameExt;
+
+                    _putOssAndRecord(localRdbPath, ossFileName, function(err){
 
                         if(err){
                             next(err);
@@ -227,7 +219,7 @@ function uploadChunkOrRdb(req, res, next){
             });
         }
 
-        function _putOssAndRecord(localFilePath, callback){
+        function _putOssAndRecord(localFilePath, ossFileName, callback){
 
             oss.putNewBackupObjectToOss(ossFileName, localFilePath, function(err){
 
