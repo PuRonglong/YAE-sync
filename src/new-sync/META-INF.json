@@ -45,6 +45,14 @@
             "auth": false,
             "impl": "syncService.uploadDeltaOrRdb",
             "comment": "上传rdb或delta"
+        },
+        {
+            "name": "downloadRdb",
+            "path": "/newsync/downloadRdb",
+            "method": "get",
+            "auth": false,
+            "impl": "syncService.downloadRdb",
+            "comment": "下载rdb"
         }
     ],
     "statics": [

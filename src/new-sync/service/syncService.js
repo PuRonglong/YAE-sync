@@ -8,6 +8,7 @@ exports.checkDeviceId = checkDeviceId;
 exports.checkChunk = checkChunk;
 exports.downloadChunk = downloadChunk;
 exports.uploadDeltaOrRdb = uploadDeltaOrRdb;
+exports.downloadRdb = downloadRdb;
 
 function checkDeviceId(req, res, next){
 
@@ -268,6 +269,11 @@ function uploadDeltaOrRdb(req, res, next){
             });
         }
     });
+}
+
+function downloadRdb(req, res, next){
+
+    res.send("ok");
 }
 
 function _fetchLatestRdbFromOss(enterpriseId, callback){
