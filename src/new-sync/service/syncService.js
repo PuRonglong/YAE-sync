@@ -74,7 +74,7 @@ function downloadChunk(req, res, next){
 
         libsync.file_chunk(localRdbPath, chunkPath, 0, function (err, flag) {
 
-            _cleanRdbFile(function(){
+            _cleanLocalFile(localRdbPath, function(){
 
                 if(err){
                     console.log("调用libsync库失败");
@@ -96,32 +96,10 @@ function downloadChunk(req, res, next){
                         console.log(err);
                     }
 
-                    _cleanChunkFile();
+                    _cleanLocalFile(chunkPath);
                 });
             });
         });
-
-        function _cleanRdbFile(callback){
-
-            fs.unlink(localRdbPath, function(err){
-
-                if(err){
-                    console.log("删除rdb文件失败: " + localRdbPath);
-                }
-
-                callback();
-            });
-        }
-
-        function _cleanChunkFile(){
-
-            fs.unlink(chunkPath, function(err){
-
-                if(err){
-                    console.log("删除chunk文件失败: " + chunkPath);
-                }
-            });
-        }
     });
 }
 
@@ -173,13 +151,10 @@ function uploadDeltaOrRdb(req, res, next){
             _fetchLatestRdbFromOss(enterpriseId, function(err, localRdbPath){
 
                 if(err){
-
                     console.log(err);
-
-                    _cleanDeltaFile(function(){
+                    _cleanLocalFile(uploadPath, function(){
                         next(err);
                     });
-
                     return;
                 }
 
@@ -188,7 +163,7 @@ function uploadDeltaOrRdb(req, res, next){
                     if(err){
                         console.log("调用libsync库失败");
                         console.log(err);
-                        _cleanDeltaFile(function(){
+                        _cleanLocalFile(uploadPath, function(){
                             next(err);
                         });
                         return;
@@ -196,7 +171,7 @@ function uploadDeltaOrRdb(req, res, next){
 
                     if(flag === -1){
                         console.log({errorMessage: "调用file_sync失败"});
-                        _cleanDeltaFile(function(){
+                        _cleanLocalFile(uploadPath, function(){
                             next({errorMessage: "调用file_sync失败"});
                         });
                         return;
@@ -216,18 +191,6 @@ function uploadDeltaOrRdb(req, res, next){
                         doResponse(req, res, {message: "ok"});
                     });
                 });
-
-                function _cleanDeltaFile(callback){
-
-                    fs.unlink(uploadPath, function(err){
-
-                        if(err) {
-                            console.log("删除delta文件失败: " + uploadPath);
-                        }
-
-                        callback();
-                    });
-                }
             });
         }
 
@@ -235,14 +198,11 @@ function uploadDeltaOrRdb(req, res, next){
 
             oss.putNewBackupObjectToOss(ossFileName, localFilePath, function(err){
 
-                fs.unlink(localFilePath, function(err){
-
-                    if(err) {
-                        console.log("删除文件失败: " + localFilePath);
-                    }
+                _cleanLocalFile(localFilePath, function(){
 
                     if(err){
                         console.log("上传文件到OSS失败");
+                        console.log(err);
                         callback(err);
                         return;
                     }
@@ -259,6 +219,7 @@ function uploadDeltaOrRdb(req, res, next){
 
                         if(err){
                             console.log("备份记录写入数据库失败");
+                            console.log(err);
                             callback(err);
                             return;
                         }
@@ -290,18 +251,8 @@ function downloadRdb(req, res, next){
                 console.log(err);
             }
 
-            _cleanRdbFile();
+            _cleanLocalFile(localRdbPath);
         });
-
-        function _cleanRdbFile(){
-
-            fs.unlink(localRdbPath, function(err){
-
-                if(err){
-                    console.log("删除rdb文件失败: " + localRdbPath);
-                }
-            });
-        }
     });
 }
 
@@ -335,5 +286,19 @@ function _fetchLatestRdbFromOss(enterpriseId, callback){
 
             callback(null, localRdbPath);
         });
+    });
+}
+
+function _cleanLocalFile(filePath, callback){
+
+    fs.unlink(filePath, function(err){
+
+        if(err){
+            console.log("删除文件失败: " + filePath);
+        }
+
+        if(callback){
+            callback();
+        }
     });
 }
