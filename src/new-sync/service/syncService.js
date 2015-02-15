@@ -74,7 +74,7 @@ function downloadChunk(req, res, next){
 
         libsync.file_chunk(localRdbPath, chunkPath, 0, function (err, flag) {
 
-            _cleanLocalFile(localRdbPath, function(){
+            _removeFile(localRdbPath, function(){
 
                 if(err){
                     console.log("调用libsync库失败");
@@ -96,7 +96,7 @@ function downloadChunk(req, res, next){
                         console.log(err);
                     }
 
-                    _cleanLocalFile(chunkPath);
+                    _removeFile(chunkPath);
                 });
             });
         });
@@ -152,7 +152,7 @@ function uploadDeltaOrRdb(req, res, next){
 
                 if(err){
                     console.log(err);
-                    _cleanLocalFile(uploadPath, function(){
+                    _removeFile(uploadPath, function(){
                         next(err);
                     });
                     return;
@@ -163,7 +163,7 @@ function uploadDeltaOrRdb(req, res, next){
                     if(err){
                         console.log("调用libsync库失败");
                         console.log(err);
-                        _cleanLocalFile(uploadPath, function(){
+                        _removeFile(uploadPath, function(){
                             next(err);
                         });
                         return;
@@ -171,7 +171,7 @@ function uploadDeltaOrRdb(req, res, next){
 
                     if(flag === -1){
                         console.log({errorMessage: "调用file_sync失败"});
-                        _cleanLocalFile(uploadPath, function(){
+                        _removeFile(uploadPath, function(){
                             next({errorMessage: "调用file_sync失败"});
                         });
                         return;
@@ -198,7 +198,7 @@ function uploadDeltaOrRdb(req, res, next){
 
             oss.putNewBackupObjectToOss(ossFileName, localFilePath, function(err){
 
-                _cleanLocalFile(localFilePath, function(){
+                _removeFile(localFilePath, function(){
 
                     if(err){
                         console.log("上传文件到OSS失败");
@@ -251,7 +251,7 @@ function downloadRdb(req, res, next){
                 console.log(err);
             }
 
-            _cleanLocalFile(localRdbPath);
+            _removeFile(localRdbPath);
         });
     });
 }
@@ -289,7 +289,7 @@ function _fetchLatestRdbFromOss(enterpriseId, callback){
     });
 }
 
-function _cleanLocalFile(filePath, callback){
+function _removeFile(filePath, callback){
 
     fs.unlink(filePath, function(err){
 
