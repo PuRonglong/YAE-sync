@@ -70,7 +70,7 @@ function downloadChunk(req, res, next){
             return;
         }
 
-        var chunkPath = localRdbPath + ".chunk";
+        var chunkPath = localRdbPath.replace("oss_cache", "chunk_cache").replace("rdb", "chunk");
 
         libsync.file_chunk(localRdbPath, chunkPath, 0, function (err, flag) {
 
@@ -114,7 +114,7 @@ function uploadDeltaOrRdb(req, res, next){
         var now = new Date().getTime();
 
         var tmp_path = req.files.file.path;// 上传文件缓存路径
-        var uploadPath = global.appdir + "data/uploadTemp/" + req.files.file.name;// 上传的rdb或delta
+        var uploadPath = global.appdir + "data/upload_cache/" + req.files.file.name;// 上传的rdb或delta
 
         fs.rename(tmp_path, uploadPath, function(err){
 
@@ -135,7 +135,7 @@ function uploadDeltaOrRdb(req, res, next){
 
             var ossFileName = now + "_" + req.files.file.name;
 
-            _putOssAndRecord(uploadPath, ossFileName, function(err){
+            _putOssAndRecord(ossFileName, uploadPath, function(err){
 
                 if(err){
                     next(err);
@@ -181,7 +181,7 @@ function uploadDeltaOrRdb(req, res, next){
                     var nameExt = req.files.file.name.replace("delta", "rdb");
                     var ossFileName = now + "_" + nameExt;
 
-                    _putOssAndRecord(localRdbPath, ossFileName, function(err){
+                    _putOssAndRecord(ossFileName, localRdbPath, function(err){
 
                         if(err){
                             next(err);
@@ -194,7 +194,7 @@ function uploadDeltaOrRdb(req, res, next){
             });
         }
 
-        function _putOssAndRecord(localFilePath, ossFileName, callback){
+        function _putOssAndRecord(ossFileName, localFilePath, callback){
 
             oss.putNewBackupObjectToOss(ossFileName, localFilePath, function(err){
 
@@ -274,7 +274,7 @@ function _fetchLatestRdbFromOss(enterpriseId, callback){
         }
 
         var ossPath = result[0].oss_path;
-        var localRdbPath = global.appdir + "data/" + ossPath;
+        var localRdbPath = global.appdir + "data/oss_cache/" + ossPath;
 
         oss.getObject("new-backup", ossPath, localRdbPath, function(err) {
 
