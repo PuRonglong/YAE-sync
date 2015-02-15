@@ -114,7 +114,7 @@ function uploadDeltaOrRdb(req, res, next){
         var now = new Date().getTime();
 
         var tmp_path = req.files.file.path;// 上传文件缓存路径
-        var uploadPath = global.appdir + "data/uploadTemp/" + req.files.file.name;// 上传的rdb或chunk
+        var uploadPath = global.appdir + "data/uploadTemp/" + req.files.file.name;// 上传的rdb或delta
 
         fs.rename(tmp_path, uploadPath, function(err){
 
