@@ -128,7 +128,7 @@ function _loop(){
 
     function _postRdbData(callback){
 
-        datas.postResource("/newsynchandler/handleRdb", "", {enterprise_rdbData: merge_data}).then(function(){
+        datas.postResource("newsynchandler/handleRdb", "", {enterprise_rdbData: merge_data}).then(function(){
             callback(null);
         }, function(err) {
             callback(err);
