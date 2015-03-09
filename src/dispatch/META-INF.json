@@ -1,0 +1,41 @@
+{
+    "interface": {
+        "services": {
+
+        },
+        "sdk": {
+
+        },
+        "url": {
+
+        },
+        "fragment": {
+
+        }
+    },
+    "services": [
+        {
+            "name": "loopBackupHistory",
+            "path": "/newsync/startDispatch",
+            "method": "get",
+            "auth": false,
+            "impl": "historyLooper.start",
+            "comment": "触发轮询history表"
+        }
+    ],
+    "statics": [
+
+    ],
+    "ejsviews": [
+
+    ],
+    "errorHandler": [
+    ],
+    "dataModelSchema": {
+
+    },
+    "configuration": {
+
+    }
+
+}
