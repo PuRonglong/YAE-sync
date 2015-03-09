@@ -13,15 +13,13 @@
 
         }
     },
+    "initial": {
+        "name": "initial_dispatch",
+        "impl": "historyLooper.start",
+        "comment": "启动时开始轮询history表"
+    },
     "services": [
-        {
-            "name": "loopBackupHistory",
-            "path": "/newsync/startDispatch",
-            "method": "get",
-            "auth": false,
-            "impl": "historyLooper.start",
-            "comment": "触发轮询history表"
-        }
+
     ],
     "statics": [
 

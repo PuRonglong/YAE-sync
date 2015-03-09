@@ -3,17 +3,10 @@ var datas = new (require(FRAMEWORKPATH + "/bus/request"))();
 var logger = require(FRAMEWORKPATH + "/utils/logger").getLogger();
 
 var TIME_INTERVAL = 30 * 1000;
-var started = false;
 
 exports.start = start;
 
 function start(){
-
-    if(started){
-        return;
-    }
-
-    started = true;
 
     setInterval(_loop, TIME_INTERVAL);
 }
@@ -21,6 +14,8 @@ function start(){
 function _loop(){
 
     var merge_data = [];
+
+    logger.info("开始轮询new_backup_history表");
 
     async.series(_handleRdbData, _postRdbData, function(err){
 
