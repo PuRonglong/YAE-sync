@@ -16,7 +16,7 @@ function handleRdb2Mysql(req, res, next){
 
     doResponse(req, res, {message: "ok"});
 
-    var rdbDataList = res.body.enterprise_rdbData;
+    var rdbDataList = req.body.enterprise_rdbData;
     var now = new Date().getTime();
 
     async.each(rdbDataList, function(item, next){
