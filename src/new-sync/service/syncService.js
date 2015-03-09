@@ -9,6 +9,7 @@ exports.checkChunk = checkChunk;
 exports.downloadChunk = downloadChunk;
 exports.uploadDeltaOrRdb = uploadDeltaOrRdb;
 exports.downloadRdb = downloadRdb;
+exports.queryLatestBackupRecord = queryLatestBackupRecord;
 
 function checkDeviceId(req, res, next){
 
@@ -253,6 +254,30 @@ function downloadRdb(req, res, next){
 
             _removeFile(localRdbPath);
         });
+    });
+}
+
+function queryLatestBackupRecord(req, res, next){
+
+    var enterpriseId = req.headers["x-enterpriseid"];
+
+    var sql = "select id, enterprise_id, upload_date as lastBackup_date" +
+        " from planx_graph.new_backup_history" +
+        " where enterprise_id = :enterprise_id order by upload_date desc limit 0, 1;";
+
+    dbHelper.execSql(sql, {enterprise_id: enterpriseId}, function(err, results){
+
+        if(err){
+            console.log(err);
+            next(err);
+            return;
+        }
+
+        if(results.length === 0){
+            doResponse(req, res, {});
+        }else{
+            doResponse(req, res, results[0]);
+        }
     });
 }
 

@@ -53,6 +53,14 @@
             "auth": false,
             "impl": "syncService.downloadRdb",
             "comment": "下载rdb"
+        },
+        {
+            "name": "queryBackupRecord",
+            "path": "/newsync/queryBackupRecord",
+            "method": "get",
+            "auth": false,
+            "impl": "syncService.queryLatestBackupRecord",
+            "comment": "查询最后备份记录"
         }
     ],
     "statics": [
