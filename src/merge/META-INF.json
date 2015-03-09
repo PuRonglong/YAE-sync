@@ -16,7 +16,7 @@
     "services": [
         {
             "name": "rdb2mysql",
-            "path": "/newsync/handleRdb",
+            "path": "/newsynchandler/handleRdb",
             "method": "post",
             "auth": false,
             "impl": "rdbHandler.handleRdb2Mysql",
