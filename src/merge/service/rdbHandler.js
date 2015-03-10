@@ -17,44 +17,20 @@ function handleRdb2Mysql(req, res, next){
     doResponse(req, res, {message: "ok"});
 
     var rdbDataList = req.body.enterprise_rdbData;
-    var now = new Date().getTime();
 
-    async.each(rdbDataList, function(item, next){
-
-        var sql = "update planx_graph.new_backup_history set merge_done = 1, merge_date = :date where id = :id;";
-
-        dbHelper.execSql(sql, {id: item.id, date: now}, function(err){
-
-            if(err){
-                next(err);
-                return;
-            }
-
-            _process(item, next);
-        });
-
-    }, function(err){
+    async.each(rdbDataList, _process, function(err){
 
         if(err) {
             logger.error(err);
         }else{
-            logger.info("批量写入mysql成功");
+            logger.info("批量写入mysql成功，处理文件数量：" + rdbDataList.length);
         }
     });
 
     function _process(rdbRecord, callback){
 
-        var ossPath = "";
-        var localRdbPath = "";
-        var rdbHelper = "";
-        var rdbData = rdbRecord;
-
-        if(_.isEmpty(rdbData)){
-            callback({error: "rdb没有需要处理的数据", errorCode: '0001'});
-            return;
-        }
-
-        var allSqlList = [];
+        var ossPath = rdbRecord.oss_path;
+        var localRdbPath = global.appdir + "data/oss_cache/" + ossPath;
 
         var metaDataListInsert = [];
         var metaDataListUpdate = [];
@@ -62,38 +38,41 @@ function handleRdb2Mysql(req, res, next){
 
         var entityDataListInsert = [];
         var entityDataListUpdate= [];
-
         var entityData = [];
-        var tempData = [];
 
-        async.series([_queryOssPath, _queryMetaInsert, _queryInsertData, _queryMetaUpdate, _queryUpdateData, _queryMetaDelete, _buildAllSql, _batchExecSql, _changeMerge_done], function(err){
+        var tempData = [];
+        var allSqlList = [];
+
+        var rdbHelper;
+
+        var steps = [
+            _markInProcess,
+            _queryOssPath,
+            _queryMetaInsert,
+            _queryInsertData,
+            _queryMetaUpdate,
+            _queryUpdateData,
+            _queryMetaDelete,
+            _buildAllSql,
+            _batchExecSql,
+            _cleanModifyDataTable,
+            _putRdbFileToOSS
+        ];
+
+        async.series(steps, function(err){
 
             if(err){
-
-                var sql = "update planx_graph.new_backup_history set merge_done = 3 where id = :id;";
-
-                dbHelper.execSql(sql, {id: rdbData.id}, function (error) {
-
-                    if (error) {
-                        callback({error1: err, error2: error, errorCode: '0002'});
-                        return;
-                    }
-
-                    callback({error1: err, errorCode: '0003'});
+                _markProcessFailure(function(){
+                    callback(err);
                 });
-                return;
+            }else{
+                _markProcessSucceed(function(){
+                    callback(null);
+                });
             }
-
-            rdbHelper.run("delete from tb_modify_data;", []);
-            rdbHelper.close();
-            callback(null);
         });
 
         function _queryOssPath(callback){
-
-            ossPath = rdbData.oss_path;
-
-            localRdbPath = global.appdir + "data/oss_cache/" + ossPath;
 
             oss.getObject("new-backup", ossPath, localRdbPath, function(err) {
 
@@ -125,38 +104,6 @@ function handleRdb2Mysql(req, res, next){
             });
         }
 
-        function _queryMetaUpdate(callback){
-            var sql = "select entity_id, table_name " +
-                "from tb_modify_data " +
-                "where type = 'update' order by id asc;";
-
-            rdbHelper.all(sql, [], function(err, result){
-                if(err){
-                    callback(err);
-                    return;
-                }
-
-                metaDataListUpdate = result;
-                callback(null);
-            });
-        }
-
-        function _queryMetaDelete(callback){
-            var sql = "select entity_id, table_name " +
-                "from tb_modify_data " +
-                "where type = 'delete';";
-
-            rdbHelper.all(sql, [], function(err, result){
-                if(err){
-                    callback(err);
-                    return;
-                }
-
-                metaDataListDelete = result;
-                callback(null);
-            });
-        }
-
         function _queryInsertData(callback){
             async.eachLimit(metaDataListInsert, 10, _queryOne, callback);
 
@@ -176,6 +123,22 @@ function handleRdb2Mysql(req, res, next){
                     callback(null);
                 });
             }
+        }
+
+        function _queryMetaUpdate(callback){
+            var sql = "select entity_id, table_name " +
+                "from tb_modify_data " +
+                "where type = 'update' order by id asc;";
+
+            rdbHelper.all(sql, [], function(err, result){
+                if(err){
+                    callback(err);
+                    return;
+                }
+
+                metaDataListUpdate = result;
+                callback(null);
+            });
         }
 
         function _queryUpdateData(callback){
@@ -198,6 +161,22 @@ function handleRdb2Mysql(req, res, next){
                     callback(null);
                 });
             }
+        }
+
+        function _queryMetaDelete(callback){
+            var sql = "select entity_id, table_name " +
+                "from tb_modify_data " +
+                "where type = 'delete';";
+
+            rdbHelper.all(sql, [], function(err, result){
+                if(err){
+                    callback(err);
+                    return;
+                }
+
+                metaDataListDelete = result;
+                callback(null);
+            });
         }
 
         function _buildAllSql(callback){
@@ -257,11 +236,63 @@ function handleRdb2Mysql(req, res, next){
             dbHelper.bacthExecSql(allSqlList, callback);
         }
 
-        function _changeMerge_done(callback){
+        function _cleanModifyDataTable(callback){
 
-            var sql = "update planx_graph.new_backup_history set merge_done = 2 where id = :id;";
+            rdbHelper.run("delete from tb_modify_data;", []);
+            rdbHelper.close();
+            callback(null);
+        }
 
-            dbHelper.execSql(sql, {id: rdbData.id}, callback);
+        function _putRdbFileToOSS(callback){
+
+            oss.putNewBackupObjectToOss(ossPath, localRdbPath, function(err){
+
+                // 无论上传OSS是否成功，都删除本地rdb文件
+                _removeFile(localRdbPath, function(){
+                    callback(err);
+                });
+            });
+
+            function _removeFile(filePath, callback){
+
+                fs.unlink(filePath, function(err){
+
+                    if(err){
+                        console.log("删除文件失败: " + filePath);
+                    }
+
+                    callback();
+                });
+            }
+        }
+
+        function _refreshRecordState(state, callback){
+
+            var now = new Date().getTime();
+
+            var sql = "update planx_graph.new_backup_history set merge_done = :merge_done, merge_date = :date where id = :id;";
+
+            dbHelper.execSql(sql, {merge_done: state, date: now, id: rdbRecord.id}, function(err){
+
+                if(err){
+                    callback(err);
+                    return;
+                }
+
+                callback(null);
+            });
+        }
+
+        function _markInProcess(callback){
+            _refreshRecordState(1, callback);
+        }
+
+        function _markProcessSucceed(callback){
+            _refreshRecordState(2, callback);
+        }
+
+        function _markProcessFailure(callback){
+            _refreshRecordState(3, callback);
         }
     }
 }
