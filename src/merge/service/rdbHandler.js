@@ -21,7 +21,7 @@ function handleRdb2Mysql(req, res, next){
 
     async.each(rdbDataList, function(item, next){
 
-        var sql = "update planx_graph.new_backup_history set merge_done = 1 and merge_date = :date where id = :id;";
+        var sql = "update planx_graph.new_backup_history set merge_done = 1, merge_date = :date where id = :id;";
 
         dbHelper.execSql(sql, {id: item.id, date: now}, function(err){
 
@@ -90,9 +90,8 @@ function handleRdb2Mysql(req, res, next){
         });
 
         function _queryOssPath(callback){
-            _.each(rdbData, function(item){
-                ossPath = item.oss_path;
-            });
+
+            ossPath = rdbData.oss_path;
 
             localRdbPath = global.appdir + "data/oss_cache/" + ossPath;
 
@@ -259,11 +258,10 @@ function handleRdb2Mysql(req, res, next){
         }
 
         function _changeMerge_done(callback){
+
             var sql = "update planx_graph.new_backup_history set merge_done = 2 where id = :id;";
 
-            _.each(rdbData, function(item){
-                dbHelper.execSql(sql, {id: item.id}, callback);
-            });
+            dbHelper.execSql(sql, {id: item.id}, callback);
         }
     }
 }
