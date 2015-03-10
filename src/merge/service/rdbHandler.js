@@ -261,7 +261,7 @@ function handleRdb2Mysql(req, res, next){
 
             var sql = "update planx_graph.new_backup_history set merge_done = 2 where id = :id;";
 
-            dbHelper.execSql(sql, {id: item.id}, callback);
+            dbHelper.execSql(sql, {id: rdbData.id}, callback);
         }
     }
 }
