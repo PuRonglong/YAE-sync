@@ -17,7 +17,7 @@ function _loop(){
 
     logger.info("开始轮询new_backup_history表");
 
-    async.series(_handleRdbData, _postRdbData, function(err){
+    async.series([_handleRdbData, _postRdbData], function(err){
 
         if(err){
             logger.error(err);
