@@ -238,9 +238,11 @@ function handleRdb2Mysql(req, res, next){
 
         function _cleanModifyDataTable(callback){
 
-            rdbHelper.run("delete from tb_modify_data;", []);
-            rdbHelper.close();
-            callback(null);
+            rdbHelper.run("delete from tb_modify_data;", [], function(err){
+
+                rdbHelper.close();
+                callback(err);
+            });
         }
 
         function _putRdbFileToOSS(callback){
