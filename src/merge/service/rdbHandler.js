@@ -72,7 +72,7 @@ function handleRdb2Mysql(req, res, next){
 
                 var sql = "update planx_graph.new_backup_history set merge_done = 3 where id = :id;";
 
-                dbHelper.bacthExecSql(sql, {id: rdbData.id}, function (error) {
+                dbHelper.execSql(sql, {id: rdbData.id}, function (error) {
 
                     if (error) {
                         callback({error1: err, error2: error, errorCode: '0002'});
