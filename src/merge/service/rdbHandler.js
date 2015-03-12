@@ -21,7 +21,7 @@ function handleRdb2Mysql(req, res, next){
 
     async.each(rdbDataList, function(item, next){
 
-        var sql = "update planx_graph.new_backup_history set merge_done = 1 and merge_date = :date where id = :id;";
+        var sql = "update planx_graph.new_backup_history set merge_done = 1, merge_date = :date where id = :id;";
 
         dbHelper.execSql(sql, {id: item.id, date: now}, function(err){
 
@@ -44,8 +44,6 @@ function handleRdb2Mysql(req, res, next){
 
     function _process(rdbRecord, callback){
 
-        var ossPath = "";
-        var localRdbPath = "";
         var rdbHelper = "";
         var rdbData = rdbRecord;
 
@@ -72,7 +70,7 @@ function handleRdb2Mysql(req, res, next){
 
                 var sql = "update planx_graph.new_backup_history set merge_done = 3 where id = :id;";
 
-                dbHelper.bacthExecSql(sql, {id: rdbData.id}, function (error) {
+                dbHelper.execSql(sql, {id: rdbData.id}, function (error) {
 
                     if (error) {
                         callback({error1: err, error2: error, errorCode: '0002'});
@@ -84,17 +82,15 @@ function handleRdb2Mysql(req, res, next){
                 return;
             }
 
-            rdbHelper.run("delete from tb_modify_data;", []);
+//            rdbHelper.run("delete from tb_modify_data;", []);
             rdbHelper.close();
             callback(null);
         });
 
         function _queryOssPath(callback){
-            _.each(rdbData, function(item){
-                ossPath = item.oss_path;
-            });
 
-            localRdbPath = global.appdir + "data/oss_cache/" + ossPath;
+            var ossPath = rdbData.oss_path;
+            var localRdbPath = global.appdir + "data/oss_cache/" + ossPath;
 
             oss.getObject("new-backup", ossPath, localRdbPath, function(err) {
 
@@ -105,7 +101,7 @@ function handleRdb2Mysql(req, res, next){
                 }
 
                 rdbHelper = new sqlite3.Database(localRdbPath);
-                callback(null, localRdbPath);
+                callback(null);
             });
 
         }
@@ -185,9 +181,10 @@ function handleRdb2Mysql(req, res, next){
             function _queryOne(item, callback){
                 var sql = "select * " +
                     " from " + item.table_name +
-                    " where id = ? ;";
+                    " where id = (?) ;";
 
-                rdbHelper.all(sql, [item.entity_id], function(err, result){  //用通配符？来代替直接用item.entity_id，因为直接用会只识别'-'前面的数字，而不是识别整个字符串
+                //用通配符？来代替直接用item.entity_id，因为直接用会只识别'-'前面的数字，而不是识别整个字符串
+                rdbHelper.all(sql, [item.entity_id], function(err, result){
                     if(err){
                         callback(err);
                         return;
@@ -261,9 +258,7 @@ function handleRdb2Mysql(req, res, next){
         function _changeMerge_done(callback){
             var sql = "update planx_graph.new_backup_history set merge_done = 2 where id = :id;";
 
-            _.each(rdbData, function(item){
-                dbHelper.execSql(sql, {id: item.id}, callback);
-            });
+            dbHelper.execSql(sql, {id: rdbData.id}, callback);
         }
     }
 }

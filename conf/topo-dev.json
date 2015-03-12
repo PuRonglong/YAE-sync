@@ -9,7 +9,7 @@
             "baseurl": "http://127.0.0.1:5009/svc",
             "workerno": 1,
             "applications": [
-                "new-sync",
+
                 "dispatch",
                 "merge"
             ]
@@ -24,8 +24,8 @@
         },
         "mongodb": {
             "ip": "127.0.0.1",
-            "port": "2222",
-            "connectionurl": "127.0.0.1:2222",
+            "port": "27017",
+            "connectionurl": "127.0.0.1:27017",
             "user": "",
             "password": ""
         },
