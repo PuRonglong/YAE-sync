@@ -9,7 +9,8 @@
             "baseurl": "http://127.0.0.1:5009/svc",
             "workerno": 1,
             "applications": [
-
+                "new-sync",
+                "chain",
                 "dispatch",
                 "merge"
             ]

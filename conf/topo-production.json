@@ -10,6 +10,7 @@
             "workerno": 1,
             "applications": [
                 "new-sync",
+                "chain",
                 "dispatch",
                 "merge"
             ]

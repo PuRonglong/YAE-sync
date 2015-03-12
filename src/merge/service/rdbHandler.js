@@ -17,42 +17,20 @@ function handleRdb2Mysql(req, res, next){
     doResponse(req, res, {message: "ok"});
 
     var rdbDataList = req.body.enterprise_rdbData;
-    var now = new Date().getTime();
 
-    async.each(rdbDataList, function(item, next){
-
-        var sql = "update planx_graph.new_backup_history set merge_done = 1, merge_date = :date where id = :id;";
-
-        dbHelper.execSql(sql, {id: item.id, date: now}, function(err){
-
-            if(err){
-                next(err);
-                return;
-            }
-
-            _process(item, next);
-        });
-
-    }, function(err){
+    async.each(rdbDataList, _process, function(err){
 
         if(err) {
             logger.error(err);
         }else{
-            logger.info("批量写入mysql成功");
+            logger.info("批量写入mysql成功，处理文件数量：" + rdbDataList.length);
         }
     });
 
     function _process(rdbRecord, callback){
 
-        var rdbHelper = "";
-        var rdbData = rdbRecord;
-
-        if(_.isEmpty(rdbData)){
-            callback({error: "rdb没有需要处理的数据", errorCode: '0001'});
-            return;
-        }
-
-        var allSqlList = [];
+        var ossPath = rdbRecord.oss_path;
+        var localRdbPath = global.appdir + "data/oss_cache/" + ossPath;
 
         var metaDataListInsert = [];
         var metaDataListUpdate = [];
@@ -60,37 +38,41 @@ function handleRdb2Mysql(req, res, next){
 
         var entityDataListInsert = [];
         var entityDataListUpdate= [];
-
         var entityData = [];
-        var tempData = [];
 
-        async.series([_queryOssPath, _queryMetaInsert, _queryInsertData, _queryMetaUpdate, _queryUpdateData, _queryMetaDelete, _buildAllSql, _batchExecSql, _changeMerge_done], function(err){
+        var tempData = [];
+        var allSqlList = [];
+
+        var rdbHelper;
+
+        var steps = [
+            _markInProcess,
+            _queryOssPath,
+            _queryMetaInsert,
+            _queryInsertData,
+            _queryMetaUpdate,
+            _queryUpdateData,
+            _queryMetaDelete,
+            _buildAllSql,
+            _batchExecSql,
+            _cleanModifyDataTable,
+            _putRdbFileToOSS
+        ];
+
+        async.series(steps, function(err){
 
             if(err){
-
-                var sql = "update planx_graph.new_backup_history set merge_done = 3 where id = :id;";
-
-                dbHelper.execSql(sql, {id: rdbData.id}, function (error) {
-
-                    if (error) {
-                        callback({error1: err, error2: error, errorCode: '0002'});
-                        return;
-                    }
-
-                    callback({error1: err, errorCode: '0003'});
+                _markProcessFailure(function(){
+                    callback(err);
                 });
-                return;
+            }else{
+                _markProcessSucceed(function(){
+                    callback(null);
+                });
             }
-
-//            rdbHelper.run("delete from tb_modify_data;", []);
-            rdbHelper.close();
-            callback(null);
         });
 
         function _queryOssPath(callback){
-
-            var ossPath = rdbData.oss_path;
-            var localRdbPath = global.appdir + "data/oss_cache/" + ossPath;
 
             oss.getObject("new-backup", ossPath, localRdbPath, function(err) {
 
@@ -101,7 +83,7 @@ function handleRdb2Mysql(req, res, next){
                 }
 
                 rdbHelper = new sqlite3.Database(localRdbPath);
-                callback(null);
+                callback(null, localRdbPath);
             });
 
         }
@@ -109,7 +91,7 @@ function handleRdb2Mysql(req, res, next){
         function _queryMetaInsert(callback){
             var sql = "select entity_id, table_name " +
                 "from tb_modify_data " +
-                "where type = 'insert' order by id asc;";
+                "where type = 'insert';";
 
             rdbHelper.all(sql, [], function(err, result){
                 if(err){
@@ -118,38 +100,6 @@ function handleRdb2Mysql(req, res, next){
                 }
 
                 metaDataListInsert = result;
-                callback(null);
-            });
-        }
-
-        function _queryMetaUpdate(callback){
-            var sql = "select entity_id, table_name " +
-                "from tb_modify_data " +
-                "where type = 'update' order by id asc;";
-
-            rdbHelper.all(sql, [], function(err, result){
-                if(err){
-                    callback(err);
-                    return;
-                }
-
-                metaDataListUpdate = result;
-                callback(null);
-            });
-        }
-
-        function _queryMetaDelete(callback){
-            var sql = "select entity_id, table_name " +
-                "from tb_modify_data " +
-                "where type = 'delete';";
-
-            rdbHelper.all(sql, [], function(err, result){
-                if(err){
-                    callback(err);
-                    return;
-                }
-
-                metaDataListDelete = result;
                 callback(null);
             });
         }
@@ -175,16 +125,31 @@ function handleRdb2Mysql(req, res, next){
             }
         }
 
+        function _queryMetaUpdate(callback){
+            var sql = "select entity_id, table_name " +
+                "from tb_modify_data " +
+                "where type = 'update' order by id asc;";
+
+            rdbHelper.all(sql, [], function(err, result){
+                if(err){
+                    callback(err);
+                    return;
+                }
+
+                metaDataListUpdate = result;
+                callback(null);
+            });
+        }
+
         function _queryUpdateData(callback){
             async.eachLimit(metaDataListUpdate, 10, _queryOne, callback);
 
             function _queryOne(item, callback){
                 var sql = "select * " +
                     " from " + item.table_name +
-                    " where id = (?) ;";
+                    " where id = ? ;";
 
-                //用通配符？来代替直接用item.entity_id，因为直接用会只识别'-'前面的数字，而不是识别整个字符串
-                rdbHelper.all(sql, [item.entity_id], function(err, result){
+                rdbHelper.all(sql, [item.entity_id], function(err, result){  //用通配符？来代替直接用item.entity_id，因为直接用会只识别'-'前面的数字，而不是识别整个字符串
                     if(err){
                         callback(err);
                         return;
@@ -196,6 +161,22 @@ function handleRdb2Mysql(req, res, next){
                     callback(null);
                 });
             }
+        }
+
+        function _queryMetaDelete(callback){
+            var sql = "select entity_id, table_name " +
+                "from tb_modify_data " +
+                "where type = 'delete';";
+
+            rdbHelper.all(sql, [], function(err, result){
+                if(err){
+                    callback(err);
+                    return;
+                }
+
+                metaDataListDelete = result;
+                callback(null);
+            });
         }
 
         function _buildAllSql(callback){
@@ -255,10 +236,65 @@ function handleRdb2Mysql(req, res, next){
             dbHelper.bacthExecSql(allSqlList, callback);
         }
 
-        function _changeMerge_done(callback){
-            var sql = "update planx_graph.new_backup_history set merge_done = 2 where id = :id;";
+        function _cleanModifyDataTable(callback){
 
-            dbHelper.execSql(sql, {id: rdbData.id}, callback);
+            rdbHelper.run("delete from tb_modify_data;", [], function(err){
+
+                rdbHelper.close();
+                callback(err);
+            });
+        }
+
+        function _putRdbFileToOSS(callback){
+
+            oss.putNewBackupObjectToOss(ossPath, localRdbPath, function(err){
+
+                // 无论上传OSS是否成功，都删除本地rdb文件
+                _removeFile(localRdbPath, function(){
+                    callback(err);
+                });
+            });
+
+            function _removeFile(filePath, callback){
+
+                fs.unlink(filePath, function(err){
+
+                    if(err){
+                        console.log("删除文件失败: " + filePath);
+                    }
+
+                    callback();
+                });
+            }
+        }
+
+        function _refreshRecordState(state, callback){
+
+            var now = new Date().getTime();
+
+            var sql = "update planx_graph.new_backup_history set merge_done = :merge_done, merge_date = :date where id = :id;";
+
+            dbHelper.execSql(sql, {merge_done: state, date: now, id: rdbRecord.id}, function(err){
+
+                if(err){
+                    callback(err);
+                    return;
+                }
+
+                callback(null);
+            });
+        }
+
+        function _markInProcess(callback){
+            _refreshRecordState(1, callback);
+        }
+
+        function _markProcessSucceed(callback){
+            _refreshRecordState(2, callback);
+        }
+
+        function _markProcessFailure(callback){
+            _refreshRecordState(3, callback);
         }
     }
 }

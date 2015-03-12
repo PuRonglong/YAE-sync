@@ -1,0 +1,34 @@
+{
+    "interface": {
+        "services": {
+
+        },
+        "sdk": {
+
+        },
+        "url": {
+
+        },
+        "fragment": {
+
+        }
+    },
+    "services": [
+        {
+            "name": "syncChainConsume",
+            "path": "/newsync/syncChainConsume/:enterpriseId",
+            "method": "get",
+            "auth": false,
+            "impl": "chainService.sync",
+            "comment": "拉取跨店消费数据"
+        }
+    ],
+    "statics": [
+    ],
+    "dataModelSchema": [
+    ],
+    "configuration": {
+
+    },
+    "errorHandler": []
+}
