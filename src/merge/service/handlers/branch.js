@@ -65,7 +65,7 @@ function _buildMemberInfoSql(dataList, callback) {
         if(!_.isEmpty(branch)){
             var updateRechargeMember = {
                 id: branch.member_id,
-                modify_date: branch.modify_date,
+                modify_date: branch.create_date,
                 currentScore: branch.currentScore
             };
 
@@ -81,7 +81,7 @@ function _buildMemberInfoSql(dataList, callback) {
         if(!_.isEmpty(branch)){
             var updateRechargeMemberCard = {
                 id: branch.memberCard_id,
-                modify_date: branch.modify_date,
+                modify_date: branch.create_date,
                 currentMoney: Number(branch.amount + branch.presentMoney)
             };
 
