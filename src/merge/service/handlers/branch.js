@@ -6,7 +6,7 @@ exports._buildMemberInfoSql = _buildMemberInfoSql;
 function _buildMemberInfoSql(dataList, callback) {
     var sqlList = [];
     var branchInsertData = [];
-    var branchTableList = ['tb_serviceBill', 'tb_billAttrMap', 'tb_billProject'];
+    var branchTableList = ['tb_serviceBill', 'tb_billAttrMap', 'tb_billProject', 'tb_rechargeMemberBill'];   //跨店充值和跨店消费
 
     var otherInsertData = [];  //储存非跨店的数据
     var otherUpdateData = [];
@@ -43,12 +43,54 @@ function _buildMemberInfoSql(dataList, callback) {
     var billList = _.filter(branchList, function (item) {
         return item.table === 'tb_serviceBill';
     });
+    var branchRecharge = _.filter(branchList, function(item){
+        return item.table === 'tb_rechargeMemberBill';
+    });
 
     //过滤非跨店消费的"insert"的数据
     var tempData = _.reject(branchInsertData, function(item){
         return _.contains(branchTableList, item.table) && item.data.status === 9;
     });
     otherInsertData = otherInsertData.concat(tempData);
+
+    //跨店充值
+    _.each(branchRecharge, function(item){
+        sqlList = sqlList.concat(_buildRechargeMember(item));
+        sqlList = sqlList.concat(_buildRechargeMemberCard(item));
+    });
+
+    function _buildRechargeMember(branch){
+        var rechargeMember = [];
+
+        if(!_.isEmpty(branch)){
+            var updateRechargeMember = {
+                id: branch.member_id,
+                modify_date: branch.create_date,
+                currentScore: branch.currentScore
+            };
+
+            rechargeMember.push(sqlHelper.getServerUpdateSqlOfObjId("planx_graph", "tb_member", updateRechargeMember));
+        }
+
+        return rechargeMember;
+    }
+
+    function _buildRechargeMemberCard(branch){
+        var rechargeMemberCard = [];
+
+        if(!_.isEmpty(branch)){
+            var updateRechargeMemberCard = {
+                id: branch.memberCard_id,
+                modify_date: branch.create_date,
+                currentMoney: Number(branch.amount + branch.presentMoney)
+            };
+
+            var rechargeMemberCardSql = "update planx_graph.tb_membercard " +
+                "set currentMoney = currentMoney + :currentMoney" + ", modify_date = :modify_date " +
+                "where id = :id;";
+            rechargeMemberCard.push({statement: rechargeMemberCardSql, value: updateRechargeMemberCard});
+        }
+    }
 
     _.each(billList, function (item) {
         sqlList = sqlList.concat(_buildRechargeCard(item));    //更新充值卡

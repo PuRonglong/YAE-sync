@@ -2,13 +2,15 @@ var dbHelper = require(FRAMEWORKPATH + "/utils/dbHelper");
 var datas = new (require(FRAMEWORKPATH + "/bus/request"))();
 var logger = require(FRAMEWORKPATH + "/utils/logger").getLogger();
 
-var TIME_INTERVAL = 30 * 1000;
+var TIME_INTERVAL = 5 * 1000;
 
 exports.start = start;
 
 function start(){
 
-    setInterval(_loop, TIME_INTERVAL);
+    setTimeout(_loop, TIME_INTERVAL);
+
+    //setInterval(_loop, TIME_INTERVAL);
 }
 
 function _loop(){
@@ -93,7 +95,6 @@ function _loop(){
             }
         }
 
-        //过滤掉数据：1.merge_done全为0  2.merge_done为10  3.merge_done为20  4.merge_done为30  5merge_done为230   6.merge_done为231  7.merge_done为321
         //状态：merge_done为1 是比较merge_date和当前的时间如果大于1小时则重新发
         //merge_done:0 = 未处理, 1 = 正在处理， 2 = 处理成功， 3 = 处理失败
         function _filterData(callback){
