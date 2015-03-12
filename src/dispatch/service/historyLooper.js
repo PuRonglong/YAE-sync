@@ -2,15 +2,12 @@ var dbHelper = require(FRAMEWORKPATH + "/utils/dbHelper");
 var datas = new (require(FRAMEWORKPATH + "/bus/request"))();
 var logger = require(FRAMEWORKPATH + "/utils/logger").getLogger();
 
-var TIME_INTERVAL = 5 * 1000;
+var TIME_INTERVAL = 30 * 1000;
 
 exports.start = start;
 
 function start(){
-
-    setTimeout(_loop, TIME_INTERVAL);
-
-    //setInterval(_loop, TIME_INTERVAL);
+    setInterval(_loop, TIME_INTERVAL);
 }
 
 function _loop(){
