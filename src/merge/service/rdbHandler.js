@@ -109,7 +109,7 @@ function handleRdb2Mysql(req, res, next){
         function _queryMetaInsert(callback){
             var sql = "select entity_id, table_name " +
                 "from tb_modify_data " +
-                "where type = 'insert';";
+                "where type = 'insert' order by id asc;";
 
             rdbHelper.all(sql, [], function(err, result){
                 if(err){
