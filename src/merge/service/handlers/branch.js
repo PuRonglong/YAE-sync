@@ -64,9 +64,9 @@ function _buildMemberInfoSql(dataList, callback) {
 
         if(!_.isEmpty(branch)){
             var updateRechargeMember = {
-                id: branch.member_id,
-                modify_date: branch.create_date,
-                currentScore: branch.currentScore
+                id: branch.data.member_id,
+                modify_date: branch.data.create_date,
+                currentScore: branch.data.currentScore
             };
 
             rechargeMember.push(sqlHelper.getServerUpdateSqlOfObjId("planx_graph", "tb_member", updateRechargeMember));
@@ -80,9 +80,9 @@ function _buildMemberInfoSql(dataList, callback) {
 
         if(!_.isEmpty(branch)){
             var updateRechargeMemberCard = {
-                id: branch.memberCard_id,
-                modify_date: branch.create_date,
-                currentMoney: Number(branch.amount + branch.presentMoney)
+                id: branch.data.memberCard_id,
+                modify_date: branch.data.create_date,
+                currentMoney: Number(branch.data.amount + branch.data.presentMoney)
             };
 
             var rechargeMemberCardSql = "update planx_graph.tb_membercard " +
@@ -90,6 +90,8 @@ function _buildMemberInfoSql(dataList, callback) {
                 "where id = :id;";
             rechargeMemberCard.push({statement: rechargeMemberCardSql, value: updateRechargeMemberCard});
         }
+
+        return rechargeMemberCard;
     }
 
     _.each(billList, function (item) {
