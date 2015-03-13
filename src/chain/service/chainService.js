@@ -151,7 +151,11 @@ function sync(req, res, next){
             return;
         }
 
-        var bills = consumeDatas.concat(rechargeDatas);
+        var serviceBills = _.map(consumeDatas, function(consumeData){
+            return consumeData.serviceBill;
+        });
+
+        var bills = serviceBills.concat(rechargeDatas);
 
         var dateArray = _.map(bills, function(bill){
 
