@@ -17,13 +17,25 @@ function handleRdb2Mysql(req, res, next){
     doResponse(req, res, {message: "ok"});
 
     var rdbDataList = req.body.enterprise_rdbData;
+    var errorRecord = [];
+    var errorCount = 0;
 
     async.each(rdbDataList, _process, function(err){
 
         if(err) {
             logger.error(err);
         }else{
-            logger.info("批量写入mysql成功，处理文件数量：" + rdbDataList.length);
+            var successCount = rdbDataList.length - errorCount;
+
+            if(successCount > 0){
+                logger.info("批量写入mysql成功，处理文件数量：" + successCount);
+            }
+
+            if(errorRecord){
+                _.each(errorRecord, function(item){
+                    logger.info("写入mysql错误，错误文件：" + item.oss_path);
+                });
+            }
         }
     });
 
@@ -63,7 +75,10 @@ function handleRdb2Mysql(req, res, next){
 
             if(err){
                 _markProcessFailure(function(){
-                    callback(err);
+                    errorCount++;
+                    errorRecord.push({id: rdbRecord.id, enterprise_id: rdbRecord.enterprise_id, oss_path: rdbRecord.oss_path});
+                    logger.error(err);
+                    callback(null, errorRecord);
                 });
             }else{
                 _markProcessSucceed(function(){
