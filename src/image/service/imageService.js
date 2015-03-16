@@ -2,6 +2,7 @@ var fs = require("fs");
 var oss = require(FRAMEWORKPATH + "/utils/ossClient");
 
 exports.uploadImageZip = uploadImageZip;
+exports.downloadImageZip = downloadImageZip;
 
 function uploadImageZip(req, res, next){
 
@@ -34,6 +35,39 @@ function uploadImageZip(req, res, next){
                         doResponse(req, res, {message: "ok"});
                     }
                 });
+            });
+        });
+    });
+}
+
+function downloadImageZip(req, res, next){
+
+    var enterpriseId = req.headers["x-enterpriseid"];
+
+    var ossPath = enterpriseId + ".zip";
+    var localRdbPath = global.appdir + "data/oss_cache/" + ossPath;
+
+    oss.getObject("client-images", ossPath, localRdbPath, function(err) {
+
+        // key不存在时，此处err有值
+        if(err){
+            console.log("从OSS获取文件失败");
+            next(err);
+            return;
+        }
+
+        res.download(localRdbPath, "images.zip", function(err){
+
+            if(err){
+                console.log("下载rdb文件失败");
+                console.log(err);
+            }
+
+            fs.unlink(localRdbPath, function(unlinkError){
+
+                if(unlinkError){
+                    console.log("删除文件失败: " + localRdbPath);
+                }
             });
         });
     });

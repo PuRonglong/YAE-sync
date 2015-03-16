@@ -21,6 +21,14 @@
             "auth": false,
             "impl": "imageService.uploadImageZip",
             "comment": "上传图片的zip包"
+        },
+        {
+            "name": "resumePicture",
+            "path": "/newsync/resumePicture",
+            "method": "get",
+            "auth": false,
+            "impl": "imageService.downloadImageZip",
+            "comment": "下载图片的zip包"
         }
     ],
     "statics": [
