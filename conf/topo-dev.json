@@ -11,6 +11,7 @@
             "applications": [
                 "new-sync",
                 "chain",
+                "image",
                 "dispatch",
                 "merge"
             ]
@@ -25,8 +26,8 @@
         },
         "mongodb": {
             "ip": "127.0.0.1",
-            "port": "27017",
-            "connectionurl": "127.0.0.1:27017",
+            "port": "2222",
+            "connectionurl": "127.0.0.1:2222",
             "user": "",
             "password": ""
         },

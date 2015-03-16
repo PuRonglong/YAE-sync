@@ -1,0 +1,34 @@
+{
+    "interface": {
+        "services": {
+
+        },
+        "sdk": {
+
+        },
+        "url": {
+
+        },
+        "fragment": {
+
+        }
+    },
+    "services": [
+        {
+            "name": "backupPicture",
+            "path": "/newsync/backupPicture",
+            "method": "post",
+            "auth": false,
+            "impl": "imageService.uploadImageZip",
+            "comment": "上传图片的zip包"
+        }
+    ],
+    "statics": [
+    ],
+    "dataModelSchema": [
+    ],
+    "configuration": {
+
+    },
+    "errorHandler": []
+}
