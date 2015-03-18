@@ -3,6 +3,7 @@ var oss = require(FRAMEWORKPATH + "/utils/ossClient");
 var libsync = require("./libsync");
 var fs = require("fs");
 var async = require("async");
+var md5 = require("MD5");
 
 exports.checkDeviceId = checkDeviceId;
 exports.checkChunk = checkChunk;
@@ -109,6 +110,7 @@ function uploadDeltaOrRdb(req, res, next){
     var deviceId = req.headers["x-deviceid"];
     var enterpriseId = req.headers["x-enterpriseid"];
     var backupType = req.headers["x-backuptype"];// full or chunk
+    var md5_before_delta = req.headers["x-deltamd5"] || "";// 客户端rdb文件的md5
 
     req.form.on("end", function(){
 
@@ -178,18 +180,30 @@ function uploadDeltaOrRdb(req, res, next){
                         return;
                     }
 
-                    // 上面的file_sync如果调用成功，delta会被自动删除
-                    var nameExt = req.files.file.name.replace("delta", "rdb");
-                    var ossFileName = now + "_" + nameExt;
+                    fs.readFile(localRdbPath, function(err, data){
 
-                    _putOssAndRecord(ossFileName, localRdbPath, function(err){
+                        var md5_after_sync = md5(data);
 
-                        if(err){
-                            next(err);
+                        if(md5_after_sync !== md5_before_delta){
+                            console.log("sync后的rdb与客户端本地rdb的MD5不一致，rdb文件可能已损坏！");
+                            _removeFile(localRdbPath, function(){
+                                next({errorMessage: "MD5校验失败，rdb文件可能已损坏！"});
+                            });
                             return;
                         }
 
-                        doResponse(req, res, {message: "ok"});
+                        var nameExt = req.files.file.name.replace("delta", "rdb");
+                        var ossFileName = now + "_" + nameExt;
+
+                        _putOssAndRecord(ossFileName, localRdbPath, function(err){
+
+                            if(err){
+                                next(err);
+                                return;
+                            }
+
+                            doResponse(req, res, {message: "ok"});
+                        });
                     });
                 });
             });
