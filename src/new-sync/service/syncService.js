@@ -1,9 +1,9 @@
 var dbHelper = require(FRAMEWORKPATH + "/utils/dbHelper");
 var oss = require(FRAMEWORKPATH + "/utils/ossClient");
-var libsync = require("./libsync");
 var fs = require("fs");
 var async = require("async");
 var md5 = require("MD5");
+var exec = require('child_process').exec;
 
 exports.checkDeviceId = checkDeviceId;
 exports.checkChunk = checkChunk;
@@ -74,20 +74,25 @@ function downloadChunk(req, res, next){
 
         var chunkPath = localRdbPath.replace("oss_cache", "chunk_cache").replace("rdb", "chunk");
 
-        libsync.file_chunk(localRdbPath, chunkPath, 0, function (err, flag) {
+        var cmd = "rdiff signature " + localRdbPath + " " + chunkPath;
+        console.log(cmd);
 
+        exec(cmd, {}, function (err, stdout, stderr) {
+
+            // signature结束，无论是否成功，删除从OSS下载到本地的rdb
             _removeFile(localRdbPath, function(){
 
                 if(err){
-                    console.log("调用libsync库失败");
+                    console.log("调用rdiff命令失败");
                     console.log(err);
                     next(err);
                     return;
                 }
 
-                if(flag === -1){
-                    console.log({errorMessage: "调用file_chunk失败"});
-                    next({errorMessage: "调用file_chunk失败"});
+                if(stderr){
+                    console.log("rdiff signature失败");
+                    console.log(stderr);
+                    next(stderr);
                     return;
                 }
 
@@ -161,48 +166,57 @@ function uploadDeltaOrRdb(req, res, next){
                     return;
                 }
 
-                libsync.file_sync(localRdbPath, uploadPath, function(err, flag){
+                var nameExt = req.files.file.name.replace("delta", "sync");// enterprise_id.sync
+                var syncPath = global.appdir + "data/sync_cache/" + nameExt;
 
-                    if(err){
-                        console.log("调用libsync库失败");
-                        console.log(err);
-                        _removeFile(uploadPath, function(){
-                            next(err);
-                        });
-                        return;
-                    }
+                var cmd = "rdiff patch " + localRdbPath + " " + uploadPath + " " + syncPath;
+                console.log(cmd);
 
-                    if(flag === -1){
-                        console.log({errorMessage: "调用file_sync失败"});
-                        _removeFile(uploadPath, function(){
-                            next({errorMessage: "调用file_sync失败"});
-                        });
-                        return;
-                    }
+                exec(cmd, {}, function (err, stdout, stderr) {
 
-                    fs.readFile(localRdbPath, function(err, data){
+                    _removeFile(localRdbPath, function(){// 删除从OSS下载到本地的rdb
 
-                        var md5_after_sync = md5(data);
-
-                        if(md5_after_sync !== md5_before_delta){
-                            console.log("sync后的rdb与客户端本地rdb的MD5不一致，rdb文件可能已损坏！");
-                            _removeFile(localRdbPath, function(){
-                                next({errorMessage: "MD5校验失败，rdb文件可能已损坏！"});
-                            });
-                            return;
-                        }
-
-                        var nameExt = req.files.file.name.replace("delta", "rdb");
-                        var ossFileName = now + "_" + nameExt;
-
-                        _putOssAndRecord(ossFileName, localRdbPath, function(err){
+                        _removeFile(uploadPath, function(){// 删除delta
 
                             if(err){
+                                console.log("调用rdiff命令失败");
+                                console.log(err);
                                 next(err);
                                 return;
                             }
 
-                            doResponse(req, res, {message: "ok"});
+                            if(stderr){
+                                console.log("rdiff patch失败");
+                                console.log(stderr);
+                                next(stderr);
+                                return;
+                            }
+
+                            fs.readFile(syncPath, function(err, data){
+
+                                var md5_after_sync = md5(data);
+
+                                if(md5_after_sync !== md5_before_delta){
+                                    console.log("sync后的rdb与客户端本地rdb的MD5不一致，rdb文件可能已损坏！");
+                                    _removeFile(syncPath, function(){
+                                        next({errorMessage: "MD5校验失败，rdb文件可能已损坏！"});
+                                    });
+                                    return;
+                                }
+
+                                var nameExt = req.files.file.name.replace("delta", "rdb");
+                                var ossFileName = now + "_" + nameExt;
+
+                                _putOssAndRecord(ossFileName, syncPath, function(err){
+
+                                    if(err){
+                                        next(err);
+                                        return;
+                                    }
+
+                                    doResponse(req, res, {message: "ok"});
+                                });
+                            });
                         });
                     });
                 });
