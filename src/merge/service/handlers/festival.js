@@ -67,6 +67,7 @@ function festival_present(dataList, callback){
         _.each(weixin_present_received, function(item){
             var presents_updateModel = {
                 id: item.data.id,
+                state: item.data.state,
                 consume_state: item.data.consume_state,
                 festival_consume: item.data.festival_consume
             };
