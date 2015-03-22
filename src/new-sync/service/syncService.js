@@ -32,6 +32,7 @@ function checkDeviceId(req, res, next){
         // 设备ID不一致，这可能是解锁设备造成的
         if(result[0].count === 0){
             console.log("备份接口异常调用，没有找到登陆设备，或登陆设备不一致");
+            console.log("请求的DeviceId: " + deviceId);
             doResponse(req, res, {code:1, error:{errorCode: 400, errorMessage: "没有找到登陆设备，或登陆设备不一致"}});
             return;
         }
