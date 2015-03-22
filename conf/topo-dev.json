@@ -1,0 +1,53 @@
+{
+    "env": "dev",
+    "cluster": [
+        {
+            "name": "baseService",
+            "ip": "127.0.0.1",
+            "port": 5009,
+            "protocol": "http",
+            "baseurl": "http://127.0.0.1:5009/svc",
+            "workerno": 1,
+            "applications": [
+                "new-sync",
+                "chain",
+                "image",
+                "dispatch",
+                "merge",
+                "migration"
+            ]
+        }
+    ],
+    "dataServer": {
+        "mysql": {
+            "ip": "yilosdev.mysql.rds.aliyuncs.com",
+            "port": 3306,
+            "user": "yilos_dev",
+            "password": "yilos_dev"
+        },
+        "mongodb": {
+            "ip": "127.0.0.1",
+            "port": "2222",
+            "connectionurl": "127.0.0.1:2222",
+            "user": "",
+            "password": ""
+        },
+        "chainmysql": {
+            "ip": "yilosdev.mysql.rds.aliyuncs.com",
+            "port": 3306,
+            "user": "yilos_dev",
+            "password": "yilos_dev"
+        }
+    },
+    "clientAccess": {
+        "staticurl": "http://127.0.0.1:5009",
+        "authurl": "http://127.0.0.1:5009/svc",
+        "serviceurl": "http://127.0.0.1:5009/svc",
+        "uploadurl": "http://127.0.0.1:5009/svc/file-upload",
+        "wxserviceurl": "http://127.0.0.1:5009/svc"
+    },
+    "connector":{
+        "nail_pc_url":""
+    },
+    "ip-whitelist": []
+}

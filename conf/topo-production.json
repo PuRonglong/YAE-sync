@@ -1,0 +1,59 @@
+{
+    "env": "production",
+    "cluster": [
+        {
+            "name": "baseService",
+            "ip": "10.162.59.200",
+            "port": 8080,
+            "protocol": "http",
+            "baseurl": "http://10.160.26.76/svc",
+            "workerno": 1,
+            "applications": [
+                "new-sync",
+                "chain",
+                "image",
+                "dispatch",
+                "merge"
+            ]
+        }
+
+    ],
+    "dataServer": {
+        "mysql": {
+            "ip": "rdsn3m2ybn3m2yb.mysql.rds.aliyuncs.com",
+            "port": 3306,
+            "user": "yilos",
+            "password": "yilos123456",
+            "connectionLimit": 50
+        },
+        "mongodb": {
+            "ip": "10.161.135.104",
+            "port": "2222",
+            "connectionurl": "10.161.135.104:2222",
+            "user": "",
+            "password": ""
+        },
+        "chainmysql": {
+            "ip": "chaindev.mysql.rds.aliyuncs.com",
+            "port": 3306,
+            "user": "yilos_chain",
+            "password": "Los2013e",
+            "connectionLimit": 50
+        }
+    },
+    "clientAccess": {
+        "staticurl": "http://www.yilos.com",
+        "authurl": "http://www.yilos.com/svc",
+        "serviceurl": "http://www.yilos.com/svc",
+        "uploadurl": "http://www.yilos.com/svc/file-upload",
+        "wxserviceurl": "http://wx.yilos.com/svc"
+    },
+    "connector":{
+        "nail_pc_url":"http://www.yilos.com"
+    },
+    "ip-whitelist": ["127.0.0.1", "localhost", "www.yilos.com", "10.160.26.76", "112.124.28.115", "10.160.26.76"]
+}
+
+
+
+

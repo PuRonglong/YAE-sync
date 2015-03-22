@@ -1,0 +1,39 @@
+{
+    "interface": {
+        "services": {
+
+        },
+        "sdk": {
+
+        },
+        "url": {
+
+        },
+        "fragment": {
+
+        }
+    },
+    "initial": {
+        "name": "initial_dispatch",
+        "impl": "historyLooper.start",
+        "comment": "启动时开始轮询history表"
+    },
+    "services": [
+
+    ],
+    "statics": [
+
+    ],
+    "ejsviews": [
+
+    ],
+    "errorHandler": [
+    ],
+    "dataModelSchema": {
+
+    },
+    "configuration": {
+
+    }
+
+}

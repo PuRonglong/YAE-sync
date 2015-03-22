@@ -1,0 +1,74 @@
+{
+    "interface": {
+        "services": {
+
+        },
+        "sdk": {
+
+        },
+        "url": {
+
+        },
+        "fragment": {
+
+        }
+    },
+    "services": [
+        {
+            "name": "checkDevice",
+            "path": "/newsync/checkDevice",
+            "method": "get",
+            "auth": false,
+            "impl": "syncService.checkDeviceId",
+            "comment": "检查设备id，判断是否允许备份"
+        },
+        {
+            "name": "checkChunk",
+            "path": "/newsync/checkchunk",
+            "method": "get",
+            "auth": false,
+            "impl": "syncService.checkChunk",
+            "comment": "检查chunk是否存在"
+        },
+        {
+            "name": "downloadChunk",
+            "path": "/newsync/downloadChunk",
+            "method": "get",
+            "auth": false,
+            "impl": "syncService.downloadChunk",
+            "comment": "下载chunk"
+        },
+        {
+            "name": "uploadDeltaOrRdb",
+            "path": "/newsync/uploadDeltaOrRdb",
+            "method": "post",
+            "auth": false,
+            "impl": "syncService.uploadDeltaOrRdb",
+            "comment": "上传rdb或delta"
+        },
+        {
+            "name": "downloadRdb",
+            "path": "/newsync/downloadRdb",
+            "method": "get",
+            "auth": false,
+            "impl": "syncService.downloadRdb",
+            "comment": "下载rdb"
+        },
+        {
+            "name": "queryBackupRecord",
+            "path": "/newsync/queryBackupRecord",
+            "method": "get",
+            "auth": false,
+            "impl": "syncService.queryLatestBackupRecord",
+            "comment": "查询最后备份记录"
+        }
+    ],
+    "statics": [
+    ],
+    "dataModelSchema": [
+    ],
+    "configuration": {
+
+    },
+    "errorHandler": []
+}
