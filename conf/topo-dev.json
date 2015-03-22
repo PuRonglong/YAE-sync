@@ -13,7 +13,8 @@
                 "chain",
                 "image",
                 "dispatch",
-                "merge"
+                "merge",
+                "migration"
             ]
         }
     ],

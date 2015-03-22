@@ -1,0 +1,34 @@
+{
+    "interface": {
+        "services": {
+
+        },
+        "sdk": {
+
+        },
+        "url": {
+
+        },
+        "fragment": {
+
+        }
+    },
+    "services": [
+        {
+            "name": "uploadRdbBeforeMigration",
+            "path": "/newsync/protectMigration",
+            "method": "post",
+            "auth": false,
+            "impl": "migrationService.uploadBeforeMigration",
+            "comment": "在客户端数据迁移之前，上传本地rdb"
+        }
+    ],
+    "statics": [
+    ],
+    "dataModelSchema": [
+    ],
+    "configuration": {
+
+    },
+    "errorHandler": []
+}
